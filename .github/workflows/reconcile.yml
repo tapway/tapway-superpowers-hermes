@@ -1,0 +1,30 @@
+name: Reconcile mirror
+
+# Keeps this generated repo level with tapway/tapway-superpowers hermes/plugin.
+# Self-healing: a missed release (or a hand-edit) is corrected on the next run.
+on:
+  schedule:
+    - cron: "15 4 * * *"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [source-release]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reconcile
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Re-split the source subtree and publish
+        env:
+          SOURCE_REPO: tapway/tapway-superpowers
+          SOURCE_REF: master
+        run: python3 scripts/reconcile_mirror.py
