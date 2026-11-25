@@ -23,6 +23,13 @@ GENERATED_FILES = {"README.md", "SOURCE.json"}
 SOURCE_SUBTREE = "hermes/plugin"
 
 
+def source_url(repo: str) -> str:
+    """Git URL for ``owner/name``; a local path or URL is used verbatim (tests)."""
+    if repo.startswith(("/", "./", "../")) or "://" in repo:
+        return repo
+    return f"https://github.com/{repo}.git"
+
+
 def _sh(*args: str, cwd: Path | None = None) -> str:
     result = subprocess.run(args, cwd=cwd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -54,7 +61,7 @@ def source_plugin_hashes(repo: str, commit: str) -> dict[str, str]:
         clone = Path(tmp) / "source"
         _sh(
             "git", "clone", "--quiet", "--filter=blob:none", "--no-checkout",
-            f"https://github.com/{repo}.git", str(clone),
+            source_url(repo), str(clone),
         )
         _sh("git", "-C", str(clone), "fetch", "--quiet", "--depth", "1", "origin", commit)
         hashes = _tree_hashes(clone, f"{commit}:{SOURCE_SUBTREE}")
@@ -64,8 +71,31 @@ def source_plugin_hashes(repo: str, commit: str) -> dict[str, str]:
 
 
 def mirror_hashes(root: Path = ROOT) -> dict[str, str]:
-    tracked = _tree_hashes(root, "HEAD")
-    return {path: sha for path, sha in tracked.items() if not _is_generated(path)}
+    """path -> blob sha for the *working tree* (not HEAD).
+
+    Hashing the worktree rather than the committed tree catches a hand-edit
+    before it is published, and lets the reconcile step verify the files it
+    just wrote (its HEAD is still the previous mirror).
+    """
+    paths: list[str] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(root).as_posix()
+        if relative.startswith(".git/") or _is_generated(relative):
+            continue
+        paths.append(relative)
+    if not paths:
+        return {}
+    result = subprocess.run(
+        ["git", "-C", str(root), "hash-object", "--stdin-paths"],
+        input="\n".join(paths) + "\n",
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"git hash-object failed: {result.stderr.strip()}")
+    return dict(zip(paths, result.stdout.split()))
 
 
 def verify(commit: str | None = None, root: Path = ROOT) -> list[str]:

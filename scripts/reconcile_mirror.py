@@ -19,7 +19,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from verify_mirror import GENERATED_FILES, GENERATED_PREFIXES, SOURCE_SUBTREE, verify  # noqa: E402
+from verify_mirror import (  # noqa: E402
+    GENERATED_FILES,
+    GENERATED_PREFIXES,
+    SOURCE_SUBTREE,
+    source_url as _source_url,
+    verify,
+)
 
 SOURCE_REPO = os.environ.get("SOURCE_REPO", "tapway/tapway-superpowers")
 SOURCE_REF = os.environ.get("SOURCE_REF", "master")
@@ -57,7 +63,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         source = Path(tmp) / "source"
         _sh("git", "clone", "--quiet", "--depth", "1", "--branch", SOURCE_REF,
-            f"https://github.com/{SOURCE_REPO}.git", str(source))
+            _source_url(SOURCE_REPO), str(source))
         commit = _sh("git", "-C", str(source), "rev-parse", "HEAD")
 
         state_path = ROOT / "SOURCE.json"
