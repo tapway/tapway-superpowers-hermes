@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 #: Paths this repo owns; everything else is mirrored content.
 GENERATED_PREFIXES = (".github/", "scripts/")
-GENERATED_FILES = {"README.md", "SOURCE.json"}
+GENERATED_FILES = {"README.md", "SOURCE.json", ".gitignore"}
 SOURCE_SUBTREE = "hermes/plugin"
 
 
