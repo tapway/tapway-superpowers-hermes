@@ -81,6 +81,16 @@ def main() -> int:
         subprocess.run(["tar", "-x", "-C", str(extracted)], input=archive.stdout, check=True)
 
         version = _plugin_version(extracted / "plugin.yaml")
+        current = tuple(int(part) for part in str(state.get("version", "0.0.0")).split("."))
+        incoming = tuple(int(part) for part in version.split("."))
+        if incoming < current:
+            # Source manifests can lag its tags (release drift). Publishing the
+            # lag would downgrade every consumer instead of just being stale.
+            print(
+                f"refusing to downgrade: mirror is {state.get('version')}, "
+                f"source plugin.yaml is {version} — fix release drift in the source repo"
+            )
+            return 1
 
         # Remove mirrored files the source no longer has, then overlay the new tree.
         for relative in sorted(_mirrored_paths(ROOT)):
